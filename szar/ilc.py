@@ -13,7 +13,6 @@ from orphics.io import Plotter
 import numpy.matlib
 from scipy.special import j1
 
-
 def weightcalculator(f,N):
     N_i=np.linalg.inv(N)
     C=np.matmul(np.transpose(f),np.matmul(N_i,f))
@@ -35,6 +34,9 @@ class ILC_simple(object):
 
         #Options
 
+                 #ksz_file='input/ksz_BBPS.txt',ksz_p_file='input/ksz_p_BBPS.txt', \
+                 #tsz_cib_file='input/sz_x_cib_template.dat',fg=True):
+
         #initial set up for ILC
         self.cc = clusterCosmology
 
@@ -47,10 +49,9 @@ class ILC_simple(object):
             fq_mat_t = freqs
 
         self.fgs = fgs
+        #fgNoises(self.cc.c,ksz_file=ksz_file,ksz_p_file=ksz_p_file,tsz_cib_file=tsz_cib_file,tsz_battaglia_template_csv="data/sz_template_battaglia.csv")
 
-    
         self.dell = dell
-        #set-up ells to evaluate up to lmax
         self.evalells = np.arange(2,lmax,self.dell)
         self.N_ll_noILC = self.evalells*0.0
         self.N_ll_tsz = self.evalells*0.0
@@ -60,7 +61,6 @@ class ILC_simple(object):
         self.N_ll_tsz_c_cmb = self.evalells*0.0
         self.N_ll_tsz_c_cib = self.evalells*0.0
 
-        #Only for SO forecasts, including the SO atmosphere modeling
         if v3mode>-1:
             print("V3 flag enabled.")
             import szar.V3_calc_public as v3
@@ -86,26 +86,18 @@ class ILC_simple(object):
                 v3ell, N_ell_T_LA, N_ell_P_LA, Map_white_noise_levels = v3.AdvACT_noise(f_sky=fsky,ell_max=v3lmax+v3dell,delta_ell=\
 v3dell)
 
-        #initializing the weighting functions for the ilc
-        #thermal SZ weights
         self.W_ll_tsz = np.zeros([len(self.evalells),len(np.array(freqs))])
-        #CMB weights
         self.W_ll_cmb = np.zeros([len(self.evalells),len(np.array(freqs))])
-        #rayleigh scattering cross correlation weights
         self.W_ll_rsx = np.zeros([len(self.evalells),len(np.array(freqs))])
-        #thermal SZ constraining the CIB weights 
         self.W_ll_tsz_c_cib = np.zeros([len(self.evalells),len(np.array(freqs))])
-        #thermal SZ constraining the CMB weights 
         self.W_ll_tsz_c_cmb = np.zeros([len(self.evalells),len(np.array(freqs))])
-        #CMB constraining the thermal SZ weights 
         self.W_ll_cmb_c_tsz = np.zeros([len(self.evalells),len(np.array(freqs))])
         self.freq = freqs
 
-        #frequency functions for
-        f_nu_tsz = f_nu(self.cc.c,np.array(freqs)) #tSZ
-        f_nu_cmb = f_nu_tsz*0.0 + 1. #CMB
-        f_nu_cib = self.fgs.f_nu_cib(np.array(freqs)) #CIB
-        f_nu_rsx = self.fgs.rs_nu(np.array(freqs)) #Rayleigh Cross
+        f_nu_tsz = f_nu(self.cc.c,np.array(freqs)) 
+        f_nu_cmb = f_nu_tsz*0.0 + 1.
+        f_nu_cib = self.fgs.f_nu_cib(np.array(freqs))
+        f_nu_rsx = self.fgs.rs_nu(np.array(freqs))
 
         for ii in range(len(self.evalells)):
 
@@ -179,6 +171,7 @@ v3dell)
             N_ll_for_cmb_c_tsz_inv = N_ll_for_tsz_c_cmb_inv
             N_ll_for_tsz_c_cib_inv = np.linalg.inv(N_ll_for_tsz_c_cib)
 
+
             self.W_ll_tsz[ii,:]=weightcalculator(f_nu_tsz,N_ll_for_tsz)
             self.W_ll_rsx[ii,:]=weightcalculator(f_nu_rsx,N_ll_for_rsx)
             self.W_ll_cmb[ii,:]=weightcalculator(f_nu_cmb,N_ll_for_cmb)
@@ -192,48 +185,8 @@ v3dell)
             self.N_ll_cmb_c_tsz[ii] = np.dot(np.transpose(self.W_ll_cmb_c_tsz[ii,:]),np.dot(N_ll_for_cmb_c_tsz,self.W_ll_cmb_c_tsz[ii,:]))
             self.N_ll_tsz_c_cib[ii] = np.dot(np.transpose(self.W_ll_tsz_c_cib[ii,:]),np.dot(N_ll_for_tsz_c_cib,self.W_ll_tsz_c_cib[ii,:]))
 
-            '''
-            self.W_ll_tsz[ii,:] = 1./np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_inv,f_nu_tsz)) \
-                                  * np.dot(np.transpose(f_nu_tsz),N_ll_for_tsz_inv)
-            self.W_ll_cmb[ii,:] = 1./np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_cmb_inv,f_nu_cmb)) \
-                                  * np.dot(np.transpose(f_nu_cmb),N_ll_for_cmb_inv)
-            self.W_ll_rsx[ii,:] = 1./np.dot(np.transpose(f_nu_rsx),np.dot(N_ll_for_rsx_inv,f_nu_rsx)) \
-                                  * np.dot(np.transpose(f_nu_rsx),N_ll_for_rsx_inv)
-
-            self.N_ll_tsz[ii] = np.dot(np.transpose(self.W_ll_tsz[ii,:]),np.dot(N_ll_for_tsz,self.W_ll_tsz[ii,:]))
-            self.N_ll_cmb[ii] = np.dot(np.transpose(self.W_ll_cmb[ii,:]),np.dot(N_ll_for_cmb,self.W_ll_cmb[ii,:]))
-            self.N_ll_rsx[ii] = np.dot(np.transpose(self.W_ll_rsx[ii,:]),np.dot(N_ll_for_rsx,self.W_ll_rsx[ii,:]))
-
-            self.W_ll_tsz_c_cmb[ii,:] = old_div((np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_tsz_c_cmb_inv,f_nu_cmb)) \
-                                             * np.dot(np.transpose(f_nu_tsz),N_ll_for_tsz_c_cmb_inv) \
-                                             - np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cmb_inv,f_nu_cmb)) \
-                                             * np.dot(np.transpose(f_nu_cmb),N_ll_for_tsz_c_cmb_inv)), \
-                                        (np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_tsz_c_cmb_inv,f_nu_cmb)) \
-                                             * np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cmb_inv,f_nu_tsz)) \
-                                             - (np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cmb_inv,f_nu_cmb)))**2))
-
-            self.W_ll_tsz_c_cib[ii,:] = old_div((np.dot(np.transpose(f_nu_cib),np.dot(N_ll_for_tsz_c_cib_inv,f_nu_cib)) \
-                                             * np.dot(np.transpose(f_nu_tsz),N_ll_for_tsz_c_cib_inv) \
-                                             - np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cib_inv,f_nu_cib)) \
-                                             * np.dot(np.transpose(f_nu_cib),N_ll_for_tsz_c_cib_inv)), \
-                                        (np.dot(np.transpose(f_nu_cib),np.dot(N_ll_for_tsz_c_cib_inv,f_nu_cib)) \
-                                             * np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cib_inv,f_nu_tsz)) \
-                                             - (np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_tsz_c_cib_inv,f_nu_cib)))**2))
-
-            self.W_ll_cmb_c_tsz[ii,:] = old_div((np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_cmb_c_tsz_inv,f_nu_tsz)) \
-                                             * np.dot(np.transpose(f_nu_cmb),N_ll_for_cmb_c_tsz_inv) \
-                                             - np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_cmb_c_tsz_inv,f_nu_tsz)) \
-                                             * np.dot(np.transpose(f_nu_tsz),N_ll_for_cmb_c_tsz_inv)), \
-                                        (np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_cmb_c_tsz_inv,f_nu_cmb)) \
-                                             * np.dot(np.transpose(f_nu_tsz),np.dot(N_ll_for_cmb_c_tsz_inv,f_nu_tsz)) \
-                                             - (np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_cmb_c_tsz_inv,f_nu_tsz)))**2))
-
-            self.N_ll_tsz_c_cmb[ii] = np.dot(np.transpose(self.W_ll_tsz_c_cmb[ii,:]),np.dot(N_ll_for_tsz_c_cmb,self.W_ll_tsz_c_cmb[ii,:]))
-            self.N_ll_cmb_c_tsz[ii] = np.dot(np.transpose(self.W_ll_cmb_c_tsz[ii,:]),np.dot(N_ll_for_cmb_c_tsz,self.W_ll_cmb_c_tsz[ii,:]))
-            self.N_ll_tsz_c_cib[ii] = np.dot(np.transpose(self.W_ll_tsz_c_cib[ii,:]),np.dot(N_ll_for_tsz_c_cib,self.W_ll_tsz_c_cib[ii,:]))
-            '''
-
     def Noise_ellyy(self,constraint='None'):
+        #Calculating the noise of N_ll. Return the whole data set if no constraint; return CMB/CIB part according the constraint.
         if (constraint=='None'):
             return self.evalells,self.N_ll_tsz
         elif (constraint=='cmb'):
@@ -244,6 +197,8 @@ v3dell)
             return "Wrong option"
 
     def Noise_ellcmb(self,constraint='None'):
+        #Return error from CMB without constraint. Can't understand the second part. what is the difference between N_ll_tsz_c_cmb and
+        #N_ll_cmb_c_tsz
         if (constraint=='None'):
             return self.evalells,self.N_ll_cmb
         elif (constraint=='tsz'):
@@ -255,7 +210,7 @@ v3dell)
         return self.evalells,self.N_ll_rsx
 
     def Forecast_Cellyy(self,ellBinEdges,fsky,constraint='None'):
-
+        #Forecasting the C_l value
         ellMids  =  old_div((ellBinEdges[1:] + ellBinEdges[:-1]), 2)
 
         cls_tsz = self.fgs.tSZ(self.evalells,self.freq[0],self.freq[0]) / self.cc.c['TCMBmuK']**2. \
@@ -280,7 +235,7 @@ v3dell)
         return ellMids,cls_out,errs,sn
 
     def Forecast_Cellcmb(self,ellBinEdges,fsky,constraint='None'):
-
+        #Forecasting the C_l value contributed by the CMB
         ellMids  =  old_div((ellBinEdges[1:] + ellBinEdges[:-1]), 2)
 
         cls_cmb = self.cc.clttfunc(self.evalells)
@@ -303,7 +258,7 @@ v3dell)
 
         ellMids  =  old_div((ellBinEdges[1:] + ellBinEdges[:-1]), 2)
 
-        cls_rsx = self.fgs.rs_cross(self.evalells,self.freq[0]) \
+        cls_rsx = self.fgs.rs_cross(self.evalells,self.freq[0])\
                 / ((self.evalells+1.)*self.evalells) * 2.* np.pi
 
         cls_rsx = old_div(cls_rsx, (self.fgs.rs_nu(self.freq[0])))  # Normalized to get Cell^rsrs fiducial 
@@ -334,7 +289,7 @@ v3dell)
 
     def PlotcmbWeights(self,outfile):
         
-        #plot weights
+        #plot cmb weights
         pl = Plotter()
         for ii in range(len(self.freq)):
             pl.add(self.evalells,self.W_ll_cmb[:,ii],label=str(self.freq[ii])+' GHz')
@@ -438,10 +393,5 @@ class ILC_simple_pol(object):
 
             self.W_ll_cmb[ii,:] = 1./np.dot(np.transpose(f_nu_cmb),np.dot(N_ll_for_cmb_inv,f_nu_cmb)) \
                                   * np.dot(np.transpose(f_nu_cmb),N_ll_for_cmb_inv)
-
             self.N_ll_cmb[ii] = np.dot(np.transpose(self.W_ll_cmb[ii,:]),np.dot(N_ll_for_cmb,self.W_ll_cmb[ii,:]))
-
-
-
-
 
