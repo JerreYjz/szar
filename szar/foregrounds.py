@@ -5,7 +5,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import os,sys,inspect
 import warnings
-#import szar.sc_freq_scale as pol
+
 ######
 """
 A better set of foreground functions
@@ -396,7 +396,7 @@ class fgNoises(object):
     def tSZ(self,ell,nu1,nu2):
         assert self.tsz_template is not None, "You did not initialize this object with tsz_battaglia_template_csv."
         return self.c['A_tsz']*self.tsz_template(ell)*self.tSZ_nu(nu1)*self.tSZ_nu(nu2)
-    """
+
     def gal_dust_pol(self,ell,nu1,nu2):
         mu1 = nu1**self.c['al_gal']*self.B_nu(self.c['Td_gal'],nu1) * self.g_nu(nu1)
         mu2 = nu2**self.c['al_gal']*self.B_nu(self.c['Td_gal'],nu2) * self.g_nu(nu2)
@@ -408,38 +408,16 @@ class fgNoises(object):
 
     def gal_sync_pol(self,ell,nu1,nu2):
         ans = self.c['A_gal_sync'] * (old_div(ell,self.c['ell0sec'])) ** self.c['alpha_gs'] \
-            * (nu1*nu2/self.c['nu0']**2) ** self.c['al_syn'] * self.g_nu(nu1) * self.g_nu(nu2) / (self.g_nu(self.c['nu0']))**2
-        return ans
-    """
-    beta_d = 1.59
-    beta_s=-3.1
-    def pl_dust_power(self,freq_in_GHz, nu_353=353., beta_d=1.59):
-        nu = freq_in_GHz
-        T_dust = 19.6
-        return ((nu/(nu_353))**(beta_d-2)*old_div(self.B_nu(T_dust,nu),self.B_nu(T_dust,nu_353)))**2
-
-    def sync_power(self,freq_in_GHz, nu_K=23., beta_s=-3.1):
-        nu = freq_in_GHz
-        return (nu/nu_K)**(2*beta_s)
-    
-    def gal_dust_pol(self,ell,nu1,nu2):
-        mu1 = self.pl_dust_power(nu1,353.)
-        mu2 = self.pl_dust_power(nu2,353.)
-        ans = self.c['A_gal_dust'] * (old_div(ell,self.c['ell0sec'])) ** self.c['alpha_gd'] * mu1 * mu2 #/ mu0**2
+            * (nu1*nu2/self.c['nu0']**2) ** self.c['al_ps'] * self.g_nu(nu1) * self.g_nu(nu2) / (self.g_nu(self.c['nu0']))**2
         return ans
 
-    def gal_sync_pol(self,ell,nu1,nu2):
-        ans = self.c['A_gal_sync'] * (old_div(ell,self.c['ell0sec'])) ** self.c['alpha_gs'] \
-            * self.sync_power(nu1,23.)*self.sync_power(nu2,23.) #/ pol.sync_power(self.c['nu0'])
-        return ans
-    
     def rad_pol_ps(self,ell,nu1,nu2):
         ans = self.c['A_ps_pol'] * (old_div(ell,self.c['ell0sec'])) ** 2 * (nu1*nu2/self.c['nu0']**2) ** self.c['al_ps'] \
             * self.g_nu(nu1) * self.g_nu(nu2) / (self.g_nu(self.c['nu0']))**2
         return ans
     
     def rs_nu(self,nu):
-        return (nu/self.nu_rs)**4
+        return (old_div(nu,self.nu_rs))**4
 
     def rs_auto(self,ell,nu1,nu2):
         ans = self.rs_auto_func(ell) * self.rs_nu(nu1) * self.rs_nu(nu2)
